@@ -1,1 +1,475 @@
 
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1.0">
+
+  <title>RainMap | Rainfall Monitor</title>
+
+  <!-- Leaflet Map -->
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont,
+                   "Segoe UI", sans-serif;
+      background: #f0f6fb;
+      color: #19324a;
+    }
+
+    header {
+      background: #1769aa;
+      color: white;
+      padding: 24px 20px;
+      border-radius: 0 0 24px 24px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 650px;
+      margin: auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: white;
+      padding: 18px;
+      border-radius: 18px;
+      margin-bottom: 16px;
+      box-shadow: 0 3px 12px #173b5b12;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    select, button {
+      width: 100%;
+      padding: 13px;
+      border-radius: 12px;
+      font-size: 16px;
+      border: 1px solid #d5e2ee;
+      background: white;
+      color: #19324a;
+    }
+
+    button {
+      background: #1769aa;
+      color: white;
+      border: none;
+      margin-top: 12px;
+      font-weight: 600;
+    }
+
+    .rain-number {
+      font-size: 36px;
+      font-weight: 700;
+      color: #1769aa;
+      margin: 10px 0;
+    }
+
+    .muted {
+      color: #72859a;
+      font-size: 13px;
+    }
+
+    #map {
+      height: 300px;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    #chart {
+      width: 100%;
+      height: 180px;
+    }
+
+    .status {
+      padding: 10px;
+      border-radius: 10px;
+      background: #eaf4ff;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .hour-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #edf1f5;
+      font-size: 14px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: #72859a;
+      font-size: 12px;
+    }
+ </style>
+
+<!-- Chart.js Library -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+</head>
+
+
+<body>
+
+<header>
+  <h1>🌧️ RainMap</h1>
+  <p>ติดตามปริมาณน้ำฝนรายพื้นที่</p>
+</header>
+
+<main>
+
+  <!-- Location -->
+  <section class="card">
+    <label for="location">
+      เลือกพื้นที่ที่ต้องการตรวจสอบ
+    </label>
+
+    <select id="location">
+      <option value="13.7563,100.5018">
+        กรุงเทพมหานคร
+      </option>
+
+      <option value="18.7883,98.9853">
+        เชียงใหม่
+      </option>
+
+      <option value="16.4322,102.8236">
+        ขอนแก่น
+      </option>
+
+      <option value="7.8804,98.3923">
+        ภูเก็ต
+      </option>
+
+      <option value="14.9799,102.0978">
+        นครราชสีมา
+      </option>
+    </select>
+
+    <button id="refresh">
+      ตรวจสอบปริมาณน้ำฝน
+    </button>
+  </section>
+
+  <!-- Rain Summary -->
+  <section class="card">
+    <p class="muted">ปริมาณฝนสะสม 24 ชั่วโมง</p>
+
+    <div class="rain-number" id="totalRain">
+      -- มม.
+    </div>
+
+    <p id="rainStatus">
+      กำลังโหลดข้อมูล...
+    </p>
+
+    <div class="status" id="updated">
+      รอการอัปเดตข้อมูล
+    </div>
+  </section>
+
+  <!-- Map -->
+  <section class="card">
+    <h3>แผนที่พื้นที่ตรวจสอบ</h3>
+    <div id="map"></div>
+  </section>
+
+  <!-- Chart -->
+  <section class="card">
+    <h3>ปริมาณน้ำฝนรายชั่วโมง</h3>
+    <canvas id="chart"></canvas>
+    <p class="muted">
+      แสดงข้อมูลฝนรายชั่วโมงย้อนหลังและช่วงพยากรณ์
+    </p>
+  </section>
+
+  <!-- Hourly Data -->
+  <section class="card">
+    <h3>ข้อมูลรายชั่วโมง</h3>
+    <div id="hourlyList">
+      กำลังโหลดข้อมูล...
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  RainMap Student Innovation Project
+  <br>
+  ข้อมูลจาก Open-Meteo
+</footer>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js">
+</script>
+
+<script>
+  const locationSelect =
+    document.getElementById("location");
+
+  const totalRain =
+    document.getElementById("totalRain");
+
+  const rainStatus =
+    document.getElementById("rainStatus");
+
+  const updated =
+    document.getElementById("updated");
+
+  const hourlyList =
+    document.getElementById("hourlyList");
+
+  // Initialize Map
+  const map = L.map("map").setView(
+    [13.7563, 100.5018],
+    8
+  );
+// RainMap Base Map - Esri
+
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+  {
+    attribution:
+      "Tiles &copy; Esri and its contributors",
+
+    maxZoom: 19
+  }
+).addTo(map);
+
+
+  const marker = L.marker(
+    [13.7563, 100.5018]
+  ).addTo(map);  let rainfallChart = null;
+
+  // Convert rain amount into a simple label
+  function getRainLabel(mm) {
+    if (mm === 0) {
+      return "ไม่มีฝนในข้อมูลช่วงนี้";
+    }
+
+    if (mm < 10) {
+      return "ฝนเล็กน้อย";
+    }
+
+    if (mm < 35) {
+      return "ฝนปานกลาง";
+    }
+
+    if (mm < 90) {
+      return "ฝนหนัก";
+    }
+
+    return "ฝนหนักมาก";
+  }
+
+  // Load Rain Data
+  async function loadRain() {
+    try {
+      updated.textContent = "กำลังดึงข้อมูล...";
+
+      const [lat, lon] =
+        locationSelect.value.split(",");
+
+      const url =
+        "https://api.open-meteo.com/v1/forecast" +
+        "?latitude=" + lat +
+        "&longitude=" + lon +
+        "&hourly=precipitation" +
+        "&past_days=1" +
+        "&forecast_days=1" +
+        "&timezone=Asia%2FBangkok";
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("API request failed");
+      }
+
+      const data = await response.json();
+
+      const times = data.hourly.time;
+      const rain = data.hourly.precipitation;
+
+      const now = new Date();
+
+      // Find the last 24 hours
+      const past24 = [];
+
+      for (let i = 0; i < times.length; i++) {
+        const time = new Date(times[i]);
+
+        const difference =
+          (now - time) / (1000 * 60 * 60);
+
+        if (difference >= 0 && difference < 24) {
+          past24.push(rain[i] || 0);
+        }
+      }
+
+      const sum24 = past24.reduce(
+        (sum, value) => sum + value,
+        0
+      );
+
+      totalRain.textContent =
+        sum24.toFixed(1) + " มม.";
+
+      rainStatus.textContent =
+        getRainLabel(sum24);
+
+      updated.textContent =
+        "อัปเดตเมื่อ " +
+        now.toLocaleString("th-TH");
+
+      // Update Map
+      map.setView([lat, lon], 10);
+
+      marker.setLatLng([lat, lon]);
+
+      marker.bindPopup(
+        "ปริมาณฝนสะสม 24 ชั่วโมง: " +
+        sum24.toFixed(1) + " มม."
+      );
+
+      // Show hourly data
+      hourlyList.innerHTML = "";
+
+      const upcoming = [];
+
+      for (let i = 0; i < times.length; i++) {
+        if (new Date(times[i]) >= now) {
+          upcoming.push(i);
+        }
+
+        if (upcoming.length === 6) {
+          break;
+        }
+      }
+
+      upcoming.forEach(index => {
+        const row = document.createElement("div");
+
+        row.className = "hour-row";
+
+        const time = new Date(times[index]);
+
+        row.innerHTML =
+          "<span>" +
+          time.toLocaleTimeString("th-TH", {
+            hour: "2-digit",
+            minute: "2-digit"
+          }) +
+          "</span>" +
+          "<strong>" +
+          (rain[index] || 0).toFixed(1) +
+          " มม.</strong>";
+
+        hourlyList.appendChild(row);
+      });
+
+      // Update Chart
+      const chartLabels = times.slice(0, 24);
+      const chartData = rain.slice(0, 24);
+
+      if (rainfallChart) {
+        rainfallChart.destroy();
+      }
+
+      rainfallChart = new Chart(
+        document.getElementById("chart"),
+        {
+          type: "bar",
+
+          data: {
+            labels: chartLabels.map(time =>
+              new Date(time).toLocaleTimeString(
+                "th-TH",
+                {
+                  hour: "2-digit",
+                  minute: "2-digit"
+                }
+              )
+            ),
+
+            datasets: [{
+              label: "ปริมาณฝน (มม.)",
+              data: chartData,
+              backgroundColor: "#4b9de0",
+              borderRadius: 5
+            }]
+          },
+
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            scales: {
+              y: {
+                beginAtZero: true
+              }
+            },
+
+            plugins: {
+              legend: {
+                display: false
+              }
+            }
+          }
+        }
+      );
+
+    } catch (error) {
+      console.error(error);
+
+      updated.textContent =
+        "ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่";
+
+      rainStatus.textContent =
+        "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
+    }
+  }
+
+  // Button Events
+  document
+    .getElementById("refresh")
+    .addEventListener("click", loadRain);
+
+  locationSelect.addEventListener(
+    "change",
+    loadRain
+  );
+
+  // Start App
+  loadRain();
+</script>
+
+</body>
+</html>
