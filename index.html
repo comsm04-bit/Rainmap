@@ -107,42 +107,6 @@
       position: relative;
     }
 
-    /* สไตล์กราฟแท่งแบบ CSS 100% นิ่งสนิท ไม่ดีด ไม่บั๊ก */
-    .custom-chart {
-      display: flex;
-      align-items: flex-end;
-      gap: 6px;
-      height: 160px;
-      padding: 10px 0 5px 0;
-      overflow-x: auto;
-      border-bottom: 2px solid #edf1f5;
-    }
-
-    .chart-bar-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-width: 20px;
-      height: 100%;
-      justify-content: flex-end;
-    }
-
-    .chart-bar {
-      width: 100%;
-      background-color: #1769aa;
-      border-radius: 4px 4px 0 0;
-      transition: height 0.3s;
-    }
-
-    .chart-label {
-      font-size: 10px;
-      color: #72859a;
-      margin-top: 6px;
-      transform: rotate(-35deg);
-      white-space: nowrap;
-    }
-
     .status {
       padding: 10px;
       border-radius: 10px;
@@ -151,12 +115,32 @@
       font-size: 14px;
     }
 
-    .hour-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 0;
-      border-bottom: 1px solid #edf1f5;
+    /* ดีไซน์กล่องรายชั่วโมงแบบใหม่ เสถียรและสวยงาม */
+    .hourly-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .hourly-box {
+      background: #f7fbff;
+      border: 1px solid #e1ecf7;
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .hourly-time {
+      font-size: 12px;
+      color: #72859a;
+      margin-bottom: 4px;
+    }
+
+    .hourly-val {
       font-size: 14px;
+      font-weight: 700;
+      color: #1769aa;
     }
 
     /* Legend Control on Map */
@@ -245,22 +229,12 @@
     <div id="map"></div>
   </section>
 
-  <!-- Chart (CSS Bars) -->
+  <!-- Hourly Forecast Grid (แทนกราฟเดิม ป้องกันบั๊กยืดยาวและดีดจอ) -->
   <section class="card">
     <h3>ปริมาณน้ำฝนรายชั่วโมง (24 ชม. ล่าสุด)</h3>
-    <div class="custom-chart" id="customChart">
-      กำลังโหลดกราฟ...
-    </div>
-    <p class="muted" style="margin-top: 25px;">
-      แสดงข้อมูลฝนรายชั่วโมงย้อนหลัง 24 ชั่วโมง
-    </p>
-  </section>
-
-  <!-- Hourly Data -->
-  <section class="card">
-    <h3>ข้อมูลรายชั่วโมงถัดไป</h3>
-    <div id="hourlyList">
-      กำลังโหลดข้อมูล...
+    <p class="muted">แสดงค่าปริมาณน้ำฝนแยกตามช่วงเวลา</p>
+    <div class="hourly-grid" id="hourlyGrid">
+      กำลังโหลดข้อมูลรายชั่วโมง...
     </div>
   </section>
 
@@ -280,9 +254,8 @@
   const totalRain = document.getElementById("totalRain");
   const rainStatus = document.getElementById("rainStatus");
   const updated = document.getElementById("updated");
-  const hourlyList = document.getElementById("hourlyList");
+  const hourlyGrid = document.getElementById("hourlyGrid");
   const btnGps = document.getElementById("btnGps");
-  const customChart = document.getElementById("customChart");
 
   // Initialize Map
   const map = L.map("map").setView([13.7563, 100.5018], 8);
@@ -392,62 +365,25 @@
         radius: 12000
       }).addTo(map);
 
-      // Show upcoming hourly data
-      hourlyList.innerHTML = "";
-      const upcoming = [];
-
-      for (let i = 0; i < times.length; i++) {
-        if (new Date(times[i]) >= now) {
-          upcoming.push(i);
-        }
-        if (upcoming.length === 6) {
-          break;
-        }
-      }
-
-      upcoming.forEach(index => {
-        const row = document.createElement("div");
-        row.className = "hour-row";
-
-        const time = new Date(times[index]);
-
-        row.innerHTML =
-          "<span>" +
-          time.toLocaleTimeString("th-TH", {
-            hour: "2-digit",
-            minute: "2-digit"
-          }) +
-          "</span>" +
-          "<strong>" +
-          (rain[index] || 0).toFixed(1) +
-          " มม.</strong>";
-
-        hourlyList.appendChild(row);
-      });
-
-      // Render Custom CSS Chart (แทน Chart.js ป้องกันบั๊กดีดหน้าจอ)
+      // Render Hourly Grid (24 ชั่วโมงล่าสุด)
       const chartLabels = times.slice(0, 24);
       const chartData = rain.slice(0, 24);
-      const maxRain = Math.max(...chartData, 5); // คำนวณสัดส่วนความสูงแท่ง
 
-      customChart.innerHTML = "";
+      hourlyGrid.innerHTML = "";
       for (let i = 0; i < chartData.length; i++) {
         const val = chartData[i] || 0;
-        const heightPercent = Math.max((val / maxRain) * 100, 5); // อย่างน้อยสูง 5% ให้เห็นแท่ง
-
         const timeStr = new Date(chartLabels[i]).toLocaleTimeString("th-TH", {
           hour: "2-digit",
           minute: "2-digit"
         });
 
-        const barItem = document.createElement("div");
-        barItem.className = "chart-bar-item";
-        barItem.innerHTML = `
-          <div style="font-size: 9px; color: #19324a; margin-bottom: 2px;">${val > 0 ? val.toFixed(1) : ''}</div>
-          <div class="chart-bar" style="height: ${heightPercent}%; background-color: ${rainInfo.color};"></div>
-          <span class="chart-label">${timeStr}</span>
+        const box = document.createElement("div");
+        box.className = "hourly-box";
+        box.innerHTML = `
+          <div class="hourly-time">${timeStr}</div>
+          <div class="hourly-val">${val.toFixed(1)} มม.</div>
         `;
-        customChart.appendChild(barItem);
+        hourlyGrid.appendChild(box);
       }
 
     } catch (error) {
