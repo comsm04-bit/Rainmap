@@ -107,13 +107,6 @@
       position: relative;
     }
 
-    /* ล็อกความสูงกล่องกราฟให้จบในตัว ไม่ยืด ไม่ดันจอ */
-    .chart-box {
-      position: relative;
-      width: 100%;
-      height: 200px;
-    }
-
     .status {
       padding: 10px;
       border-radius: 10px;
@@ -222,9 +215,8 @@
   <!-- Chart -->
   <section class="card">
     <h3>ปริมาณน้ำฝนรายชั่วโมง</h3>
-    <div class="chart-box">
-      <canvas id="chart"></canvas>
-    </div>
+    <!-- ล็อกขนาดด้วย width และ height ตรงนี้ -->
+    <canvas id="chart" width="550" height="180"></canvas>
     <p class="muted">
       แสดงข้อมูลฝนรายชั่วโมงย้อนหลังและช่วงพยากรณ์
     </p>
@@ -399,7 +391,7 @@
         hourlyList.appendChild(row);
       });
 
-      // Update Chart
+      // Update Chart (ปิด responsive เป็น false เพื่อความนิ่งสนิท)
       const chartLabels = times.slice(0, 24);
       const chartData = rain.slice(0, 24);
 
@@ -429,7 +421,7 @@
             }]
           },
           options: {
-            responsive: true,
+            responsive: false,
             maintainAspectRatio: false,
             scales: {
               y: {
