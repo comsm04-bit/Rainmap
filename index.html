@@ -1,16 +1,13 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>RainMap | Rainfall Monitor</title>
 
   <!-- Leaflet Map -->
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 
   <style>
     * {
@@ -19,8 +16,7 @@
 
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont,
-                   "Segoe UI", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f0f6fb;
       color: #19324a;
     }
@@ -78,6 +74,11 @@
       border: none;
       margin-top: 12px;
       font-weight: 600;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #125182;
     }
 
     .rain-number {
@@ -93,9 +94,10 @@
     }
 
     #map {
-      height: 300px;
+      height: 320px;
       border-radius: 16px;
       overflow: hidden;
+      position: relative;
     }
 
     #chart {
@@ -119,19 +121,39 @@
       font-size: 14px;
     }
 
+    /* Legend Control on Map */
+    .map-legend {
+      background: white;
+      padding: 8px 12px;
+      font-size: 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+      line-height: 1.5;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+    .legend-color {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
     footer {
       text-align: center;
       padding: 20px;
       color: #72859a;
       font-size: 12px;
     }
- </style>
+  </style>
 
-<!-- Chart.js Library -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
-
+  <!-- Chart.js Library -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
-
 
 <body>
 
@@ -149,25 +171,11 @@
     </label>
 
     <select id="location">
-      <option value="13.7563,100.5018">
-        กรุงเทพมหานคร
-      </option>
-
-      <option value="18.7883,98.9853">
-        เชียงใหม่
-      </option>
-
-      <option value="16.4322,102.8236">
-        ขอนแก่น
-      </option>
-
-      <option value="7.8804,98.3923">
-        ภูเก็ต
-      </option>
-
-      <option value="14.9799,102.0978">
-        นครราชสีมา
-      </option>
+      <option value="13.7563,100.5018">กรุงเทพมหานคร</option>
+      <option value="18.7883,98.9853">เชียงใหม่</option>
+      <option value="16.4322,102.8236">ขอนแก่น</option>
+      <option value="7.8804,98.3923">ภูเก็ต</option>
+      <option value="14.9799,102.0978">นครราชสีมา</option>
     </select>
 
     <button id="refresh">
@@ -224,79 +232,70 @@
 </footer>
 
 <!-- Leaflet -->
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
-</script>
-
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-</script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-  const locationSelect =
-    document.getElementById("location");
-
-  const totalRain =
-    document.getElementById("totalRain");
-
-  const rainStatus =
-    document.getElementById("rainStatus");
-
-  const updated =
-    document.getElementById("updated");
-
-  const hourlyList =
-    document.getElementById("hourlyList");
+  const locationSelect = document.getElementById("location");
+  const totalRain = document.getElementById("totalRain");
+  const rainStatus = document.getElementById("rainStatus");
+  const updated = document.getElementById("updated");
+  const hourlyList = document.getElementById("hourlyList");
 
   // Initialize Map
-  const map = L.map("map").setView(
-    [13.7563, 100.5018],
-    8
-  );
-// RainMap Base Map - Esri
+  const map = L.map("map").setView([13.7563, 100.5018], 8);
 
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
-  {
-    attribution:
-      "Tiles &copy; Esri and its contributors",
+  // RainMap Base Map - Esri
+  L.tileLayer(
+    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    {
+      attribution: "Tiles &copy; Esri and its contributors",
+      maxZoom: 19
+    }
+  ).addTo(map);
 
-    maxZoom: 19
-  }
-).addTo(map);
+  const marker = L.marker([13.7563, 100.5018]).addTo(map);
+  let rainCircle = null; // ตัวแปรสำหรับวงกลมแสดงระดับฝน
+  let rainfallChart = null;
 
-
-  const marker = L.marker(
-    [13.7563, 100.5018]
-  ).addTo(map);  let rainfallChart = null;
-
-  // Convert rain amount into a simple label
-  function getRainLabel(mm) {
+  // ฟังก์ชันกำหนดสีและชื่อระดับน้ำฝน
+  function getRainInfo(mm) {
     if (mm === 0) {
-      return "ไม่มีฝนในข้อมูลช่วงนี้";
+      return { label: "ไม่มีฝนในข้อมูลช่วงนี้", color: "#28a745" }; // เขียว
     }
-
     if (mm < 10) {
-      return "ฝนเล็กน้อย";
+      return { label: "ฝนเล็กน้อย", color: "#17a2b8" }; // ฟ้า
     }
-
     if (mm < 35) {
-      return "ฝนปานกลาง";
+      return { label: "ฝนปานกลาง", color: "#ffc107" }; // เหลือง
     }
-
     if (mm < 90) {
-      return "ฝนหนัก";
+      return { label: "ฝนหนัก", color: "#fd7e14" }; // ส้ม
     }
-
-    return "ฝนหนักมาก";
+    return { label: "ฝนหนักมาก", color: "#dc3545" }; // แดง
   }
+
+  // Add Legend to Map
+  const legend = L.control({ position: "bottomright" });
+  legend.onAdd = function () {
+    const div = L.DomUtil.create("div", "map-legend");
+    div.innerHTML = `
+      <strong>ระดับปริมาณฝน</strong>
+      <div class="legend-item"><span class="legend-color" style="background:#28a745"></span>ไม่มีฝน</div>
+      <div class="legend-item"><span class="legend-color" style="background:#17a2b8"></span>ฝนเล็กน้อย (&lt;10 มม.)</div>
+      <div class="legend-item"><span class="legend-color" style="background:#ffc107"></span>ฝนปานกลาง (&lt;35 มม.)</div>
+      <div class="legend-item"><span class="legend-color" style="background:#fd7e14"></span>ฝนหนัก (&lt;90 มม.)</div>
+      <div class="legend-item"><span class="legend-color" style="background:#dc3545"></span>ฝนหนักมาก (90+ มม.)</div>
+    `;
+    return div;
+  };
+  legend.addTo(map);
 
   // Load Rain Data
   async function loadRain() {
     try {
       updated.textContent = "กำลังดึงข้อมูล...";
 
-      const [lat, lon] =
-        locationSelect.value.split(",");
+      const [lat, lon] = locationSelect.value.split(",");
 
       const url =
         "https://api.open-meteo.com/v1/forecast" +
@@ -325,39 +324,37 @@ L.tileLayer(
 
       for (let i = 0; i < times.length; i++) {
         const time = new Date(times[i]);
-
-        const difference =
-          (now - time) / (1000 * 60 * 60);
+        const difference = (now - time) / (1000 * 60 * 60);
 
         if (difference >= 0 && difference < 24) {
           past24.push(rain[i] || 0);
         }
       }
 
-      const sum24 = past24.reduce(
-        (sum, value) => sum + value,
-        0
-      );
+      const sum24 = past24.reduce((sum, value) => sum + value, 0);
+      const rainInfo = getRainInfo(sum24);
 
-      totalRain.textContent =
-        sum24.toFixed(1) + " มม.";
+      totalRain.textContent = sum24.toFixed(1) + " มม.";
+      totalRain.style.color = rainInfo.color; // เปลี่ยนสีตัวเลขตามระดับฝน
+      rainStatus.textContent = rainInfo.label;
 
-      rainStatus.textContent =
-        getRainLabel(sum24);
+      updated.textContent = "อัปเดตเมื่อ " + now.toLocaleString("th-TH");
 
-      updated.textContent =
-        "อัปเดตเมื่อ " +
-        now.toLocaleString("th-TH");
-
-      // Update Map
+      // Update Map View & Marker
       map.setView([lat, lon], 10);
-
       marker.setLatLng([lat, lon]);
+      marker.bindPopup("<b>" + rainInfo.label + "</b><br>ปริมาณฝนสะสม 24 ชม.: " + sum24.toFixed(1) + " มม.");
 
-      marker.bindPopup(
-        "ปริมาณฝนสะสม 24 ชั่วโมง: " +
-        sum24.toFixed(1) + " มม."
-      );
+      // ลบวงกลมเก่าทิ้ง (ถ้ามี) แล้วสร้างวงกลมใหม่ตามสีระดับฝน
+      if (rainCircle) {
+        map.removeLayer(rainCircle);
+      }
+      rainCircle = L.circle([lat, lon], {
+        color: rainInfo.color,
+        fillColor: rainInfo.color,
+        fillOpacity: 0.35,
+        radius: 12000 // รัศมีวงกลม 12 กิโลเมตร
+      }).addTo(map);
 
       // Show hourly data
       hourlyList.innerHTML = "";
@@ -376,7 +373,6 @@ L.tileLayer(
 
       upcoming.forEach(index => {
         const row = document.createElement("div");
-
         row.className = "hour-row";
 
         const time = new Date(times[index]);
@@ -407,7 +403,6 @@ L.tileLayer(
         document.getElementById("chart"),
         {
           type: "bar",
-
           data: {
             labels: chartLabels.map(time =>
               new Date(time).toLocaleTimeString(
@@ -418,25 +413,21 @@ L.tileLayer(
                 }
               )
             ),
-
             datasets: [{
               label: "ปริมาณฝน (มม.)",
               data: chartData,
-              backgroundColor: "#4b9de0",
+              backgroundColor: rainInfo.color, // ให้สีแท่งกราฟสอดคล้องกับระดับฝนด้วย
               borderRadius: 5
             }]
           },
-
           options: {
             responsive: true,
             maintainAspectRatio: false,
-
             scales: {
               y: {
                 beginAtZero: true
               }
             },
-
             plugins: {
               legend: {
                 display: false
@@ -448,24 +439,14 @@ L.tileLayer(
 
     } catch (error) {
       console.error(error);
-
-      updated.textContent =
-        "ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่";
-
-      rainStatus.textContent =
-        "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
+      updated.textContent = "ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่";
+      rainStatus.textContent = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
     }
   }
 
   // Button Events
-  document
-    .getElementById("refresh")
-    .addEventListener("click", loadRain);
-
-  locationSelect.addEventListener(
-    "change",
-    loadRain
-  );
+  document.getElementById("refresh").addEventListener("click", loadRain);
+  locationSelect.addEventListener("change", loadRain);
 
   // Start App
   loadRain();
