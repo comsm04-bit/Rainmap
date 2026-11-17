@@ -107,13 +107,6 @@
       position: relative;
     }
 
-    /* กล่องล็อกความสูงกราฟ แก้บั๊กกราฟยืดยาว */
-    .chart-container {
-      position: relative;
-      height: 220px;
-      width: 100%;
-    }
-
     .status {
       padding: 10px;
       border-radius: 10px;
@@ -222,9 +215,7 @@
   <!-- Chart -->
   <section class="card">
     <h3>ปริมาณน้ำฝนรายชั่วโมง</h3>
-    <div class="chart-container">
-      <canvas id="chart"></canvas>
-    </div>
+    <canvas id="chart" height="180"></canvas>
     <p class="muted">
       แสดงข้อมูลฝนรายชั่วโมงย้อนหลังและช่วงพยากรณ์
     </p>
@@ -430,7 +421,7 @@
           },
           options: {
             responsive: true,
-            maintainAspectRatio: false,
+            maintainAspectRatio: true,
             scales: {
               y: {
                 beginAtZero: true
