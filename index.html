@@ -72,13 +72,21 @@
       background: #1769aa;
       color: white;
       border: none;
-      margin-top: 12px;
+      margin-top: 10px;
       font-weight: 600;
       cursor: pointer;
     }
 
     button:hover {
       background: #125182;
+    }
+
+    /* ปุ่ม GPS สไตล์พิเศษ */
+    .btn-gps {
+      background: #28a745 !important;
+    }
+    .btn-gps:hover {
+      background: #218838 !important;
     }
 
     .rain-number {
@@ -181,6 +189,11 @@
     <button id="refresh">
       ตรวจสอบปริมาณน้ำฝน
     </button>
+
+    <!-- ปุ่มตำแหน่งปัจจุบัน -->
+    <button id="btnGps" class="btn-gps">
+      📍 ใช้ตำแหน่งปัจจุบันของฉัน (GPS)
+    </button>
   </section>
 
   <!-- Rain Summary -->
@@ -240,6 +253,7 @@
   const rainStatus = document.getElementById("rainStatus");
   const updated = document.getElementById("updated");
   const hourlyList = document.getElementById("hourlyList");
+  const btnGps = document.getElementById("btnGps");
 
   // Initialize Map
   const map = L.map("map").setView([13.7563, 100.5018], 8);
@@ -254,24 +268,23 @@
   ).addTo(map);
 
   const marker = L.marker([13.7563, 100.5018]).addTo(map);
-  let rainCircle = null; // ตัวแปรสำหรับวงกลมแสดงระดับฝน
+  let rainCircle = null;
   let rainfallChart = null;
 
-  // ฟังก์ชันกำหนดสีและชื่อระดับน้ำฝน
   function getRainInfo(mm) {
     if (mm === 0) {
-      return { label: "ไม่มีฝนในข้อมูลช่วงนี้", color: "#28a745" }; // เขียว
+      return { label: "ไม่มีฝนในข้อมูลช่วงนี้", color: "#28a745" };
     }
     if (mm < 10) {
-      return { label: "ฝนเล็กน้อย", color: "#17a2b8" }; // ฟ้า
+      return { label: "ฝนเล็กน้อย", color: "#17a2b8" };
     }
     if (mm < 35) {
-      return { label: "ฝนปานกลาง", color: "#ffc107" }; // เหลือง
+      return { label: "ฝนปานกลาง", color: "#ffc107" };
     }
     if (mm < 90) {
-      return { label: "ฝนหนัก", color: "#fd7e14" }; // ส้ม
+      return { label: "ฝนหนัก", color: "#fd7e14" };
     }
-    return { label: "ฝนหนักมาก", color: "#dc3545" }; // แดง
+    return { label: "ฝนหนักมาก", color: "#dc3545" };
   }
 
   // Add Legend to Map
@@ -290,12 +303,10 @@
   };
   legend.addTo(map);
 
-  // Load Rain Data
-  async function loadRain() {
+  // Load Rain Data by Coordinates
+  async function loadRainByCoords(lat, lon, locationName = "") {
     try {
-      updated.textContent = "กำลังดึงข้อมูล...";
-
-      const [lat, lon] = locationSelect.value.split(",");
+      updated.textContent = "กำลังดึงข้อมูลพิกัด...";
 
       const url =
         "https://api.open-meteo.com/v1/forecast" +
@@ -319,9 +330,7 @@
 
       const now = new Date();
 
-      // Find the last 24 hours
       const past24 = [];
-
       for (let i = 0; i < times.length; i++) {
         const time = new Date(times[i]);
         const difference = (now - time) / (1000 * 60 * 60);
@@ -335,8 +344,8 @@
       const rainInfo = getRainInfo(sum24);
 
       totalRain.textContent = sum24.toFixed(1) + " มม.";
-      totalRain.style.color = rainInfo.color; // เปลี่ยนสีตัวเลขตามระดับฝน
-      rainStatus.textContent = rainInfo.label;
+      totalRain.style.color = rainInfo.color;
+      rainStatus.textContent = (locationName ? "[" + locationName + "] " : "") + rainInfo.label;
 
       updated.textContent = "อัปเดตเมื่อ " + now.toLocaleString("th-TH");
 
@@ -345,7 +354,6 @@
       marker.setLatLng([lat, lon]);
       marker.bindPopup("<b>" + rainInfo.label + "</b><br>ปริมาณฝนสะสม 24 ชม.: " + sum24.toFixed(1) + " มม.");
 
-      // ลบวงกลมเก่าทิ้ง (ถ้ามี) แล้วสร้างวงกลมใหม่ตามสีระดับฝน
       if (rainCircle) {
         map.removeLayer(rainCircle);
       }
@@ -353,19 +361,17 @@
         color: rainInfo.color,
         fillColor: rainInfo.color,
         fillOpacity: 0.35,
-        radius: 12000 // รัศมีวงกลม 12 กิโลเมตร
+        radius: 12000
       }).addTo(map);
 
       // Show hourly data
       hourlyList.innerHTML = "";
-
       const upcoming = [];
 
       for (let i = 0; i < times.length; i++) {
         if (new Date(times[i]) >= now) {
           upcoming.push(i);
         }
-
         if (upcoming.length === 6) {
           break;
         }
@@ -416,7 +422,7 @@
             datasets: [{
               label: "ปริมาณฝน (มม.)",
               data: chartData,
-              backgroundColor: rainInfo.color, // ให้สีแท่งกราฟสอดคล้องกับระดับฝนด้วย
+              backgroundColor: rainInfo.color,
               borderRadius: 5
             }]
           },
@@ -443,6 +449,34 @@
       rainStatus.textContent = "ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต";
     }
   }
+
+  // Load from Select Dropdown
+  function loadRain() {
+    const [lat, lon] = locationSelect.value.split(",");
+    const selectedText = locationSelect.options[locationSelect.selectedIndex].text;
+    loadRainByCoords(parseFloat(lat), parseFloat(lon), selectedText);
+  }
+
+  // GPS Button Event
+  btnGps.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      alert("เบราว์เซอร์ของคุณไม่รองรับการระบุตำแหน่ง (Geolocation)");
+      return;
+    }
+
+    updated.textContent = "กำลังค้นหาตำแหน่งของคุณ...";
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        loadRainByCoords(lat, lon, "ตำแหน่งของฉัน");
+      },
+      (error) => {
+        alert("ไม่สามารถเข้าถึงตำแหน่งของคุณได้ กรุณาอนุญาตการใช้งาน Location ในเบราว์เซอร์");
+        updated.textContent = "ไม่สามารถเข้าถึงตำแหน่งได้";
+      }
+    );
+  });
 
   // Button Events
   document.getElementById("refresh").addEventListener("click", loadRain);
