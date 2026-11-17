@@ -215,7 +215,7 @@
   <!-- Chart -->
   <section class="card">
     <h3>ปริมาณน้ำฝนรายชั่วโมง</h3>
-    <canvas id="chart" height="180"></canvas>
+    <canvas id="chart" width="580" height="180"></canvas>
     <p class="muted">
       แสดงข้อมูลฝนรายชั่วโมงย้อนหลังและช่วงพยากรณ์
     </p>
@@ -390,7 +390,7 @@
         hourlyList.appendChild(row);
       });
 
-      // Update Chart
+      // Update Chart (ปิด responsive และล็อกขนาดตายตัว)
       const chartLabels = times.slice(0, 24);
       const chartData = rain.slice(0, 24);
 
@@ -420,8 +420,8 @@
             }]
           },
           options: {
-            responsive: true,
-            maintainAspectRatio: true,
+            responsive: false,
+            maintainAspectRatio: false,
             scales: {
               y: {
                 beginAtZero: true
